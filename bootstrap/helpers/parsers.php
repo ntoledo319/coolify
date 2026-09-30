@@ -1874,7 +1874,7 @@ function applicationParser(Application $resource, int $pull_request_id = 0, ?int
 
                 // Resolve shared variable patterns like {{environment.VAR}}, {{project.VAR}}, {{team.VAR}}
                 // Without this, literal {{...}} strings end up in the compose environment: section,
-                // which takes precedence over the resolved values in the .env file (env_file:)
+                // which would otherwise end up as literal strings in the container environment
                 if (is_string($value) && str_contains($value, '{{')) {
                     $value = resolveSharedEnvironmentVariables($value, $resource);
                 }
@@ -2029,16 +2029,6 @@ function applicationParser(Application $resource, int $pull_request_id = 0, ?int
         if ($depends_on->count() > 0) {
             $payload['depends_on'] = $depends_on;
         }
-        // Auto-inject .env file so Coolify environment variables are available inside containers
-        // This makes Applications behave consistently with manual .env file usage
-        $existingEnvFiles = data_get($service, 'env_file');
-        $envFiles = collect(is_null($existingEnvFiles) ? [] : (is_array($existingEnvFiles) ? $existingEnvFiles : [$existingEnvFiles]))
-            ->push('.env')
-            ->unique()
-            ->values();
-
-        $payload['env_file'] = $envFiles;
-
         // Inject commit-based image tag for services with build directive (for rollback support)
         // Only inject if service has build but no explicit image defined
         $hasBuild = data_get($service, 'build') !== null;
@@ -3138,7 +3128,7 @@ function serviceParser(Service $resource): Collection
 
                 // Resolve shared variable patterns like {{environment.VAR}}, {{project.VAR}}, {{team.VAR}}
                 // Without this, literal {{...}} strings end up in the compose environment: section,
-                // which takes precedence over the resolved values in the .env file (env_file:)
+                // which would otherwise end up as literal strings in the container environment
                 if (is_string($value) && str_contains($value, '{{')) {
                     $value = resolveSharedEnvironmentVariables($value, $resource);
                 }
@@ -3283,16 +3273,6 @@ function serviceParser(Service $resource): Collection
         if ($depends_on->count() > 0) {
             $payload['depends_on'] = $depends_on;
         }
-        // Auto-inject .env file so Coolify environment variables are available inside containers
-        // This makes Services behave consistently with Applications
-        $existingEnvFiles = data_get($service, 'env_file');
-        $envFiles = collect(is_null($existingEnvFiles) ? [] : (is_array($existingEnvFiles) ? $existingEnvFiles : [$existingEnvFiles]))
-            ->push('.env')
-            ->unique()
-            ->values();
-
-        $payload['env_file'] = $envFiles;
-
         $parsedServices->put($serviceName, $payload);
     }
     $topLevel->put('services', $parsedServices);
